@@ -104,10 +104,12 @@ class TickerBase():
         data = utils.get_json(ticker_url, proxy, self.session)
         return data
 
+    ## YK changes start
     def history(self, period="1mo", interval="1d",
                 start=None, end=None, prepost=False, actions=True,
-                auto_adjust=True, back_adjust=False,
+                auto_adjust=True, back_adjust=False, data_fetch_retries=1,
                 proxy=None, rounding=False, tz=None, timeout=None, **kwargs):
+    ## YK changes end
         """
         :Parameters:
             period : str
@@ -190,7 +192,10 @@ class TickerBase():
 
         data = None
 
-        try:
+        ## YK changes start
+        success = False
+        attempts = 0
+        while(success == False and attempts < data_fetch_retries):
             data = session.get(
                 url=url,
                 params=params,
@@ -198,14 +203,27 @@ class TickerBase():
                 headers=utils.user_agent_headers,
                 timeout=timeout
             )
-            if "Will be right back" in data.text or data is None:
+            if "Will be right back" in data.text:
+                attempts += 1
+                _time.sleep(1)
                 raise RuntimeError("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***\n"
-                                   "Our engineers are working quickly to resolve "
-                                   "the issue. Thank you for your patience.")
-
-            data = data.json()
-        except Exception:
-            pass
+                                "Our engineers are working quickly to resolve "
+                                "the issue. Thank you for your patience.")
+            elif data.status_code != 404:
+                try:
+                    data = data.json()
+                    success = True
+                except Exception as e:
+                    _time.sleep(0.5)
+                    attempts += 1
+                    raise e
+            else:
+                _time.sleep(0.3)
+                attempts +=1
+                
+        if success == False:
+            print('Failed to get Ticker ' + url.split("/")[-1])
+        ## YK changes end
 
         # Work with errors
         debug_mode = True
@@ -598,10 +616,10 @@ class TickerBase():
                 # print(res)
                 # q_results[ticker].append(res)
                 except:
-                    q_results[ticker].append({i: np.nan})
+                    q_results[self.ticker].append({i: _np.nan})
 
-            res = {'Company': ticker}
-            q_results[ticker].append(res)
+            res = {'Company': self.ticker}
+            q_results[self.ticker].append(res)
         except Exception:
             pass
 

@@ -28,11 +28,12 @@ import pandas as _pd
 from . import Ticker, utils
 from . import shared
 
-
-def download(tickers, start=None, end=None, actions=False, threads=True,
-             group_by='column', auto_adjust=False, back_adjust=False,
+## YK changes start
+def download(tickers, start=None, end=None, actions=False, threads=True, num_threads=None,
+             data_fetch_retries=1, group_by='column', auto_adjust=False, back_adjust=False, 
              progress=True, period="max", show_errors=True, interval="1d", prepost=False,
              proxy=None, rounding=False, timeout=None, **kwargs):
+## YK changes end
     """Download yahoo tickers
     :Parameters:
         tickers : str, list
@@ -99,26 +100,38 @@ def download(tickers, start=None, end=None, actions=False, threads=True,
     # download using threads
     if threads:
         if threads is True:
-            threads = min([len(tickers), _multitasking.cpu_count() * 2])
+            ## YK changes start
+            if num_threads == None:
+                threads = min([len(tickers), _multitasking.cpu_count() * 2])
+            else:
+                threads = num_threads
+            ## YK changes end
         _multitasking.set_max_threads(threads)
         for i, ticker in enumerate(tickers):
-            _download_one_threaded(ticker, period=period, interval=interval,
-                                   start=start, end=end, prepost=prepost,
-                                   actions=actions, auto_adjust=auto_adjust,
-                                   back_adjust=back_adjust,
-                                   progress=(progress and i > 0), proxy=proxy,
-                                   rounding=rounding, timeout=timeout)
+            ## YK changes start
+            try:
+                _download_one_threaded(ticker, period=period, interval=interval,
+                                    start=start, end=end, prepost=prepost, actions=actions, 
+                                    auto_adjust=auto_adjust,back_adjust=back_adjust, 
+                                    data_fetch_retries=data_fetch_retries,
+                                    progress=(progress and i > 0), proxy=proxy,
+                                    rounding=rounding, timeout=timeout)
+            except Exception as e:
+                raise e
+            ## YK changes end
         while len(shared._DFS) < len(tickers):
             _time.sleep(0.01)
 
     # download synchronously
     else:
         for i, ticker in enumerate(tickers):
+            ## YK changes start
             data = _download_one(ticker, period=period, interval=interval,
                                  start=start, end=end, prepost=prepost,
-                                 actions=actions, auto_adjust=auto_adjust,
-                                 back_adjust=back_adjust, proxy=proxy,
-                                 rounding=rounding, timeout=timeout)
+                                 actions=actions, auto_adjust=auto_adjust, 
+                                 back_adjust=back_adjust, data_fetch_retries=data_fetch_retries,
+                                 proxy=proxy, rounding=rounding, timeout=timeout)
+            ## YK changes end
             shared._DFS[ticker.upper()] = data
             if progress:
                 shared._PROGRESS_BAR.animate()
@@ -179,29 +192,43 @@ def _realign_dfs():
 
 
 @_multitasking.task
+## YK changes start
 def _download_one_threaded(ticker, start=None, end=None,
-                           auto_adjust=False, back_adjust=False,
-                           actions=False, progress=True, period="max",
-                           interval="1d", prepost=False, proxy=None,
-                           rounding=False, timeout=None):
+                           auto_adjust=False, back_adjust=False, 
+                           data_fetch_retries=1, actions=False, 
+                           progress=True, period="max", interval="1d", 
+                           prepost=False, proxy=None, rounding=False, 
+                           timeout=None):
+    try:
+        data = _download_one(ticker, start, end, auto_adjust, back_adjust, 
+                             data_fetch_retries, actions, period, interval, 
+                             prepost, proxy, rounding, timeout)
+    except Exception as e:
+        raise e
+    ## YK changes end
 
-    data = _download_one(ticker, start, end, auto_adjust, back_adjust,
-                         actions, period, interval, prepost, proxy, rounding,
-                         timeout)
     shared._DFS[ticker.upper()] = data
     if progress:
         shared._PROGRESS_BAR.animate()
 
-
+## YK changes start
 def _download_one(ticker, start=None, end=None,
-                  auto_adjust=False, back_adjust=False,
-                  actions=False, period="max", interval="1d",
+                  auto_adjust=False, back_adjust=False, data_fetch_retries=1,
+                  actions=False, period="max", interval="1d", 
                   prepost=False, proxy=None, rounding=False,
                   timeout=None):
-
-    return Ticker(ticker).history(period=period, interval=interval,
+    temp = None
+    try:
+        temp = Ticker(ticker).history(period=period, interval=interval,
                                   start=start, end=end, prepost=prepost,
-                                  actions=actions, auto_adjust=auto_adjust,
-                                  back_adjust=back_adjust, proxy=proxy,
+                                  actions=actions, auto_adjust=auto_adjust, 
+                                  back_adjust=back_adjust, 
+                                  data_fetch_retries=data_fetch_retries, proxy=proxy, 
                                   rounding=rounding, many=True,
                                   timeout=timeout)
+    except Exception as e:
+        raise e
+    
+    return temp
+## YK changes end
+
