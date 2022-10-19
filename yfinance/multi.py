@@ -29,11 +29,10 @@ from . import Ticker, utils
 from . import shared
 
 ## YK changes start
-def download(tickers, start=None, end=None, actions=False, threads=True, num_threads=None,
+def download(tickers, start=None, end=None, actions=False, threads=True, ignore_tz=True, num_threads=None,
              data_fetch_retries=1, group_by='column', auto_adjust=False, back_adjust=False, 
              progress=True, period="max", show_errors=True, interval="1d", prepost=False,
-             proxy=None, rounding=False, timeout=None, **kwargs):
-## YK changes end
+             proxy=None, rounding=False, keepna=False, timeout=None, **kwargs):
     """Download yahoo tickers
     :Parameters:
         tickers : str, list
@@ -57,16 +56,22 @@ def download(tickers, start=None, end=None, actions=False, threads=True, num_thr
             Default is False
         auto_adjust: bool
             Adjust all OHLC automatically? Default is False
+        keepna: bool
+            Keep NaN rows returned by Yahoo?
+            Default is False
         actions: bool
             Download dividend + stock splits data. Default is False
         threads: bool / int
             How many threads to use for mass downloading. Default is True
+        ignore_tz: bool
+            When combining from different timezones, ignore that part of datetime.
+            Default is True
         proxy: str
             Optional. Proxy server URL scheme. Default is None
         rounding: bool
             Optional. Round values to 2 decimal places?
         show_errors: bool
-            Optional. Doesn't print errors if True
+            Optional. Doesn't print errors if False
         timeout: None or float
             If not None stops waiting for a response after given number of
             seconds. (Can also be a fraction of a second e.g. 0.01)
@@ -115,7 +120,7 @@ def download(tickers, start=None, end=None, actions=False, threads=True, num_thr
                                     auto_adjust=auto_adjust,back_adjust=back_adjust, 
                                     data_fetch_retries=data_fetch_retries,
                                     progress=(progress and i > 0), proxy=proxy,
-                                    rounding=rounding, timeout=timeout)
+                                    rounding=rounding, keepna=keepna, timeout=timeout)
             except Exception as e:
                 raise e
             ## YK changes end
@@ -130,7 +135,7 @@ def download(tickers, start=None, end=None, actions=False, threads=True, num_thr
                                  start=start, end=end, prepost=prepost,
                                  actions=actions, auto_adjust=auto_adjust, 
                                  back_adjust=back_adjust, data_fetch_retries=data_fetch_retries,
-                                 proxy=proxy, rounding=rounding, timeout=timeout)
+                                 proxy=proxy, rounding=rounding, keepna=keepna, timeout=timeout)
             ## YK changes end
             shared._DFS[ticker.upper()] = data
             if progress:
@@ -150,12 +155,17 @@ def download(tickers, start=None, end=None, actions=False, threads=True, num_thr
         ticker = tickers[0]
         return shared._DFS[shared._ISINS.get(ticker, ticker)]
 
+    if ignore_tz:
+        for tkr in shared._DFS.keys():
+            if (shared._DFS[tkr] is not None) and (shared._DFS[tkr].shape[0]>0):
+                shared._DFS[tkr].index = shared._DFS[tkr].index.tz_localize(None)
+
     try:
-        data = _pd.concat(shared._DFS.values(), axis=1,
+        data = _pd.concat(shared._DFS.values(), axis=1, sort=True,
                           keys=shared._DFS.keys())
     except Exception:
         _realign_dfs()
-        data = _pd.concat(shared._DFS.values(), axis=1,
+        data = _pd.concat(shared._DFS.values(), axis=1, sort=True,
                           keys=shared._DFS.keys())
 
     # switch names back to isins if applicable
@@ -197,12 +207,12 @@ def _download_one_threaded(ticker, start=None, end=None,
                            auto_adjust=False, back_adjust=False, 
                            data_fetch_retries=1, actions=False, 
                            progress=True, period="max", interval="1d", 
-                           prepost=False, proxy=None, rounding=False, 
+                           prepost=False, proxy=None, rounding=False, keepna=False,
                            timeout=None):
     try:
         data = _download_one(ticker, start, end, auto_adjust, back_adjust, 
                              data_fetch_retries, actions, period, interval, 
-                             prepost, proxy, rounding, timeout)
+                             prepost, proxy, rounding, keepna, timeout)
     except Exception as e:
         raise e
     ## YK changes end
@@ -215,7 +225,7 @@ def _download_one_threaded(ticker, start=None, end=None,
 def _download_one(ticker, start=None, end=None,
                   auto_adjust=False, back_adjust=False, data_fetch_retries=1,
                   actions=False, period="max", interval="1d", 
-                  prepost=False, proxy=None, rounding=False,
+                  prepost=False, proxy=None, rounding=False, keepna=False,
                   timeout=None):
     temp = None
     try:
@@ -224,7 +234,7 @@ def _download_one(ticker, start=None, end=None,
                                   actions=actions, auto_adjust=auto_adjust, 
                                   back_adjust=back_adjust, 
                                   data_fetch_retries=data_fetch_retries, proxy=proxy, 
-                                  rounding=rounding, many=True,
+                                  rounding=rounding, keepna=keepna, many=True,
                                   timeout=timeout)
     except Exception as e:
         raise e

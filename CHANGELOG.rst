@@ -1,9 +1,36 @@
 Change Log
 ===========
 
+0.1.79
+------
+- Fix when Yahoo returns price=NaNs on dividend day
+
+0.1.78
+------
+- Fix download() when different timezones #1085
+
+0.1.77
+------
+- Fix user experience bug #1078
+
+0.1.75
+------
+- Fixed datetime-related issues: #1048
+- Add 'keepna' argument #1032
+- Speedup Ticker() creation #1042
+- Improve a bugfix #1033
+
+0.1.74
+------
+- Fixed bug introduced in 0.1.73 (sorry :/)
+
+0.1.73
+------
+- Merged several PR that fixed misc issues
+
 0.1.72
 ------
-- bugfix 
+- Misc bugfixs
 
 0.1.71
 ------

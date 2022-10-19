@@ -187,6 +187,11 @@ data = yf.download(  # or pdr.get_data_yahoo(...
         # (optional, default is '1d')
         interval = "1m",
 
+        # Whether to ignore timezone when aligning ticker data from 
+        # different timezones. Default is True. False may be useful for 
+        # minute/hourly data.
+        ignore_tz = False,
+
         # group by ticker (to access via data['SPY'])
         # (optional, default is 'column')
         group_by = 'ticker',
@@ -264,6 +269,7 @@ To install `yfinance` using `conda`, see
 -   [Numpy](http://www.numpy.org) \>= 1.11.1
 -   [requests](http://docs.python-requests.org/en/master/) \>= 2.14.2
 -   [lxml](https://pypi.org/project/lxml/) \>= 4.5.1
+-   [appdirs](https://pypi.org/project/appdirs) \>=1.4.4
 
 ### Optional (if you want to use `pandas_datareader`)
 
